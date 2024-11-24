@@ -197,3 +197,66 @@ exports.getOverallAverageRatingByCompanyId = async (req, res) => {
     res.status(500).json({ error: "Error al calcular el promedio general", details: error.message });
   }
 };
+
+
+///
+exports.getCompanyData = async (req, res) => {
+  try {
+   
+    const companies = await Company.find();
+
+    // Promete resolver los datos de cada empresa
+    const companyData = await Promise.all(
+      companies.map(async (company) => {
+        // Busca los comentarios relacionados con la empresa
+        const comments = await Comment.find({ company: company._id });
+
+        // Calcula el promedio de calificaciones
+        const totalRatings = comments.reduce(
+          (totals, comment) => {
+            return {
+              workLifeBalance: totals.workLifeBalance + comment.ratings.workLifeBalance,
+              salary: totals.salary + comment.ratings.salary,
+              growthOpportunities: totals.growthOpportunities + comment.ratings.growthOpportunities,
+              workEnvironment: totals.workEnvironment + comment.ratings.workEnvironment,
+              professionalDevelopment: totals.professionalDevelopment + comment.ratings.professionalDevelopment,
+            };
+          },
+          {
+            workLifeBalance: 0,
+            salary: 0,
+            growthOpportunities: 0,
+            workEnvironment: 0,
+            professionalDevelopment: 0,
+          }
+        );
+
+        const averageRating =
+          comments.length > 0
+            ? (
+                (totalRatings.workLifeBalance +
+                  totalRatings.salary +
+                  totalRatings.growthOpportunities +
+                  totalRatings.workEnvironment +
+                  totalRatings.professionalDevelopment) /
+                (5 * comments.length)
+              ).toFixed(2)
+            : 0;
+
+        // Devuelve los datos necesarios
+        return {
+          id: company._id,
+          name: company.name,
+          description: `Rubro de ${company.industry} . Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados `,
+          averageRating: averageRating,
+          totalComments: comments.length,
+        };
+      })
+    );
+
+    res.status(200).json(companyData);
+  } catch (error) {
+    console.error("Error al obtener datos de las empresas:", error.message);
+    res.status(500).json({ error: "Error al obtener datos de las empresas", details: error.message });
+  }
+};
