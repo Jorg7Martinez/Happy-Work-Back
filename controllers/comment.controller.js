@@ -38,8 +38,10 @@ exports.getComments = async (req, res) => {
 
 
 // Buscar por nombre de empresa o ID
+
+// Obtener comentarios de una empresa con detalles y promedio general
 exports.getCommentByCompanyOrId = async (req, res) => {
-  const { id, companyName } = req.query; 
+  const { id, companyName } = req.query;
 
   try {
     let query = {};
@@ -47,39 +49,95 @@ exports.getCommentByCompanyOrId = async (req, res) => {
     if (id) {
       // Buscar comentarios por ID de empresa
       query.company = id;
-      console.log("Query by Company ID:", query);
     } else if (companyName) {
-      // Buscar comentarios basados en un fragmento del nombre de la empresa
+      // Buscar empresas por nombre
       const companies = await Company.find({
-        name: { $regex: companyName, $options: "i" } // busqueda con minusculas
+        name: { $regex: companyName, $options: "i" },
       });
 
       if (!companies.length) {
         return res.status(404).json({ error: "No se encontraron empresas con ese nombre" });
       }
 
-      // Filtrar comentarios por las empresas encontradas
+      // Obtener IDs de las empresas encontradas
       const companyIds = companies.map((company) => company._id);
       query.company = { $in: companyIds };
-      console.log("Query by Company Name:", query);
     } else {
-      return res.status(400).json({ error: "Debes proporcionar un ID de empresa o un fragmento del nombre" });
+      return res.status(400).json({ error: "Debes proporcionar un ID de empresa o un nombre" });
     }
 
-    // Buscar comentarios con el query creado
-    const comments = await Comment.find(query).populate("company", "name industry");
-    console.log("Comments found:", comments);
+    // Buscar comentarios con la consulta generada
+    const comments = await Comment.find(query)
+      .populate("company", "name industry address employeesCount")
+      .populate("user", "name email");
 
     if (!comments.length) {
       return res.status(404).json({ message: "No se encontraron comentarios" });
     }
 
-    res.status(200).json(comments);
+    // Calcular promedios
+    const totalRatings = comments.reduce(
+      (totals, comment) => {
+        return {
+          workLifeBalance: totals.workLifeBalance + comment.ratings.workLifeBalance,
+          salary: totals.salary + comment.ratings.salary,
+          growthOpportunities: totals.growthOpportunities + comment.ratings.growthOpportunities,
+          workEnvironment: totals.workEnvironment + comment.ratings.workEnvironment,
+          professionalDevelopment: totals.professionalDevelopment + comment.ratings.professionalDevelopment,
+        };
+      },
+      {
+        workLifeBalance: 0,
+        salary: 0,
+        growthOpportunities: 0,
+        workEnvironment: 0,
+        professionalDevelopment: 0,
+      }
+    );
+
+    const averageRatings = {
+      workLifeBalance: (totalRatings.workLifeBalance / comments.length).toFixed(2),
+      salary: (totalRatings.salary / comments.length).toFixed(2),
+      growthOpportunities: (totalRatings.growthOpportunities / comments.length).toFixed(2),
+      workEnvironment: (totalRatings.workEnvironment / comments.length).toFixed(2),
+      professionalDevelopment: (totalRatings.professionalDevelopment / comments.length).toFixed(2),
+    };
+
+    const overallAverage = (
+      Object.values(averageRatings).reduce((sum, value) => sum + parseFloat(value), 0) /
+      Object.values(averageRatings).length
+    ).toFixed(2);
+
+    // Preparar respuesta
+    const companyDetails = comments[0]?.company; 
+    const response = {
+      company: {
+        name: companyDetails.name,
+        description: `Rubro de ${companyDetails.industry}. Ubicada en ${companyDetails.address}, cuenta con ${companyDetails.employeesCount} empleados.`,
+        totalComments: comments.length,
+        averageRatings,
+        overallAverage,
+      },
+      comments: comments.map((comment) => ({
+        id: comment._id,
+        content: comment.content,
+        rating: comment.ratings, // Incluye todas las métricas de calificación
+        isAnonymous: comment.isAnonymous,
+        user: comment.isAnonymous ? "Anónimo" : { id: comment.user?._id, name: comment.user?.name, email: comment.user?.email },
+        comment:comment.comment,
+        createdAt: comment.createdAt,
+      })),
+    };
+
+    res.status(200).json(response);
   } catch (error) {
     console.error("Error al obtener los comentarios:", error.message);
     res.status(500).json({ error: "Error al obtener los comentarios", details: error.message });
   }
 };
+
+
+
 
 
 //promedio de empresas
@@ -143,6 +201,11 @@ exports.getOverallAverageRatingByCompanyId = async (req, res) => {
   }
 
   try {
+    const company = await Company.findById(id);
+
+    if (!company) {
+      return res.status(404).json({ message: "No se encontró la empresa con el ID proporcionado" });
+    }
     // Buscar comentarios por ID de empresa
     const comments = await Comment.find({ company: id });
 
@@ -187,8 +250,13 @@ exports.getOverallAverageRatingByCompanyId = async (req, res) => {
         averageRatings.professionalDevelopment) /
       5;
 
-    res.status(200).json({
-      averageRatings,
+      res.status(200).json({
+        company: {
+          id: company._id,
+          name: company.name,
+          description: `Rubro de ${company.industry}. Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados.`,
+        },
+        averageRatings,
       overallAverage: overallAverage.toFixed(2),
       totalComments: comments.length,
     });
