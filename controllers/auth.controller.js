@@ -76,12 +76,12 @@ exports.login = async (req, res) => {
 
     const account = await Model.findOne({ email });
     if (!account) {
-      return res.status(400).json({ message: "Credenciales incorrectas" });
+      return res.status(400).json({ message: "Tus datos son incorrectos. Vuelva a comprobarla." });
     }
 
     const isMatch = await bcrypt.compare(password, account.password);
     if (!isMatch) {
-      return res.status(401).json({ message: "Contraseña incorrecta" });
+      return res.status(401).json({ message: "Tu contraseña es incorrecta. Vuelva a comprobarla." });
     }
 
     res.status(200).json({
