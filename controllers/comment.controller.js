@@ -38,16 +38,20 @@ exports.getComments = async (req, res) => {
 
 
 // Buscar por nombre de empresa o ID
-
-// Obtener comentarios de una empresa con detalles y promedio general
 exports.getCommentByCompanyOrId = async (req, res) => {
   const { id, companyName } = req.query;
 
   try {
     let query = {};
 
+    let companyDetails; 
+
     if (id) {
-      // Buscar comentarios por ID de empresa
+      // Buscar empresa por ID
+      companyDetails = await Company.findById(id);
+      if (!companyDetails) {
+        return res.status(404).json({ error: "No se encontró una empresa con ese ID" });
+      }
       query.company = id;
     } else if (companyName) {
       // Buscar empresas por nombre
@@ -59,57 +63,64 @@ exports.getCommentByCompanyOrId = async (req, res) => {
         return res.status(404).json({ error: "No se encontraron empresas con ese nombre" });
       }
 
-      // Obtener IDs de las empresas encontradas
-      const companyIds = companies.map((company) => company._id);
-      query.company = { $in: companyIds };
+      // Seleccionar la primera empresa encontrada
+      companyDetails = companies[0];
+      query.company = companyDetails._id;
     } else {
       return res.status(400).json({ error: "Debes proporcionar un ID de empresa o un nombre" });
     }
 
-    // Buscar comentarios con la consulta generada
+    // Buscar comentarios relacionados con la empresa
     const comments = await Comment.find(query)
       .populate("company", "name industry address employeesCount")
       .populate("user", "name email");
 
-    if (!comments.length) {
-      return res.status(404).json({ message: "No se encontraron comentarios" });
-    }
-
-    // Calcular promedios
-    const totalRatings = comments.reduce(
-      (totals, comment) => {
-        return {
-          workLifeBalance: totals.workLifeBalance + comment.ratings.workLifeBalance,
-          salary: totals.salary + comment.ratings.salary,
-          growthOpportunities: totals.growthOpportunities + comment.ratings.growthOpportunities,
-          workEnvironment: totals.workEnvironment + comment.ratings.workEnvironment,
-          professionalDevelopment: totals.professionalDevelopment + comment.ratings.professionalDevelopment,
-        };
-      },
-      {
-        workLifeBalance: 0,
-        salary: 0,
-        growthOpportunities: 0,
-        workEnvironment: 0,
-        professionalDevelopment: 0,
-      }
-    );
-
-    const averageRatings = {
-      workLifeBalance: (totalRatings.workLifeBalance / comments.length).toFixed(2),
-      salary: (totalRatings.salary / comments.length).toFixed(2),
-      growthOpportunities: (totalRatings.growthOpportunities / comments.length).toFixed(2),
-      workEnvironment: (totalRatings.workEnvironment / comments.length).toFixed(2),
-      professionalDevelopment: (totalRatings.professionalDevelopment / comments.length).toFixed(2),
+    let averageRatings = {
+      workLifeBalance: 0,
+      salary: 0,
+      growthOpportunities: 0,
+      workEnvironment: 0,
+      professionalDevelopment: 0,
     };
 
-    const overallAverage = (
-      Object.values(averageRatings).reduce((sum, value) => sum + parseFloat(value), 0) /
-      Object.values(averageRatings).length
-    ).toFixed(2);
+    let overallAverage = 0;
+
+    if (comments.length > 0) {
+      // Calcular promedios si hay comentarios
+      const totalRatings = comments.reduce(
+        (totals, comment) => {
+          return {
+            workLifeBalance: totals.workLifeBalance + comment.ratings.workLifeBalance,
+            salary: totals.salary + comment.ratings.salary,
+            growthOpportunities: totals.growthOpportunities + comment.ratings.growthOpportunities,
+            workEnvironment: totals.workEnvironment + comment.ratings.workEnvironment,
+            professionalDevelopment: totals.professionalDevelopment + comment.ratings.professionalDevelopment,
+          };
+        },
+        {
+          workLifeBalance: 0,
+          salary: 0,
+          growthOpportunities: 0,
+          workEnvironment: 0,
+          professionalDevelopment: 0,
+        }
+      );
+
+      averageRatings = {
+        workLifeBalance: (totalRatings.workLifeBalance / comments.length).toFixed(2),
+        salary: (totalRatings.salary / comments.length).toFixed(2),
+        growthOpportunities: (totalRatings.growthOpportunities / comments.length).toFixed(2),
+        workEnvironment: (totalRatings.workEnvironment / comments.length).toFixed(2),
+        professionalDevelopment: (totalRatings.professionalDevelopment / comments.length).toFixed(2),
+      };
+
+      overallAverage = (
+        Object.values(averageRatings).reduce((sum, value) => sum + parseFloat(value), 0) /
+        Object.values(averageRatings).length
+      ).toFixed(2);
+    }
 
     // Preparar respuesta
-    const companyDetails = comments[0]?.company; 
     const response = {
       company: {
         name: companyDetails.name,
@@ -121,11 +132,12 @@ exports.getCommentByCompanyOrId = async (req, res) => {
       comments: comments.map((comment) => ({
         id: comment._id,
         content: comment.content,
-        rating: comment.ratings, // Incluye todas las métricas de calificación
+        rating: comment.ratings, 
         isAnonymous: comment.isAnonymous,
         user: comment.isAnonymous ? "Anónimo" : { id: comment.user?._id, name: comment.user?.name, email: comment.user?.email },
-        comment:comment.comment,
+        comment: comment.comment,
         createdAt: comment.createdAt,
+        date:comment.date?comment.date.toISOString().split("T")[0]: "",
       })),
     };
 

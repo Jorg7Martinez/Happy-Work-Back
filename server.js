@@ -18,9 +18,12 @@ app.use(express.json());
 // rutas
 const authRoutes = require("./routes/auth.routes");
 const commentRoutes = require("./routes/comment.routes");
+const companyRoutes = require("./routes/company.routes");
+
 
 app.use("/api/auth", authRoutes);
 app.use("/api/comments", commentRoutes);
+app.use("/api/company", companyRoutes);
 
 const PORT = process.env.PORT || 5000;
 
