@@ -4,10 +4,15 @@ const Comment = require("../model/comment.model");
 // Obtener lista de empresas con promedio de calificaciones en orden descendente
 exports.getAllCompaniesWithAverage = async (req, res) => {
   try {
-    const companies = await Company.find();
+    const { companyName } = req.query; 
 
-    if (!companies.length) {
-      return res.status(404).json({ message: "No se encontraron empresas" });
+    // Filtrar por nombre de empresa si `companyName` está presente
+    const companies = await Company.find(
+      companyName ? { name: { $regex: companyName, $options: "i" } } : {}
+    );
+
+    if (!companies || companies.length === 0) {
+      return res.status(200).json([]);  
     }
 
     const result = await Promise.all(
