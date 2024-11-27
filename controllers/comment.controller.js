@@ -5,24 +5,60 @@ const Comment = require("../model/comment.model");
 // Agregar un comentario
 exports.addComment = async (req, res) => {
   try {
-    const { company } = req.body;
+    console.log(req.body);
 
-    // Verifica si la empresa existe
+    const { user, company, name, isAnonymous, comment, ratings } = req.body;
+
+    // Validación básica
+    if (!user || !company || !comment || !ratings) {
+      return res.status(400).json({ error: "Faltan campos obligatorios" });
+    }
+    if (!req.user) {
+      return res.status(401).json({ message: "Usuario no autenticado" });
+      
+    }
+    // Asignar nombre como 'Anonimo' si es anonimo
+    const finalName = isAnonymous ? "Anónimo" : name;
+
+    if (!finalName) {
+      return res.status(400).json({ error: "El nombre es obligatorio si no es anónimo." });
+    }
+
+    // Validación de calificaciones
+    const requiredRatings = ["workLifeBalance", "salary", "growthOpportunities", "workEnvironment", "professionalDevelopment"];
+    for (const key of requiredRatings) {
+      if (!ratings[key] && ratings[key] !== 0) {
+        return res.status(400).json({ error: `La calificación para ${key} es obligatoria.` });
+      }
+    }
+
+    // Verificar existencia de la empresa
     const existingCompany = await Company.findById(company);
     if (!existingCompany) {
       return res.status(404).json({ error: "Empresa no encontrada" });
     }
 
-    // Crea y guarda el comentario
-    const comment = new Comment(req.body);
-    await comment.save();
+    // Crear y guardar el comentario
+    const newComment = new Comment({
+      user,
+      company,
+      name: finalName, // Usar el nombre asignado
+      isAnonymous,
+      comment,
+      ratings,
+    });
 
-    res.status(201).json(comment);
+    await newComment.save();
+
+    res.status(201).json(newComment);
   } catch (error) {
     console.error("Error al agregar comentario:", error.message);
     res.status(500).json({ error: "Error al agregar comentario", details: error.message });
   }
 };
+
+
+
 
 
 // Obtener todos los comentarios
