@@ -76,12 +76,12 @@ exports.login = async (req, res) => {
 
     const account = await Model.findOne({ email });
     if (!account) {
-      return res.status(400).json({ message: "Credenciales incorrectas" });
+      return res.status(400).json({ message: "Tus datos son incorrectos. Vuelva a comprobarla." });
     }
 
     const isMatch = await bcrypt.compare(password, account.password);
     if (!isMatch) {
-      return res.status(401).json({ message: "Contraseña incorrecta" });
+      return res.status(401).json({ message: "Tu contraseña es incorrecta. Vuelva a comprobarla." });
     }
 
     res.status(200).json({
@@ -98,43 +98,3 @@ exports.login = async (req, res) => {
 };
 
 
-
-
-
-
-
-
-
-//login
-/*
-exports.loginUser = async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Usuario no encontrado" });
-
-    console.log("Contraseña ingresada:", password);  // Contraseña en texto plano
-    console.log("Contraseña en la base de datos (hash):", user.password);  // Contraseña encriptada
-
-    // Comparar la contraseña ingresada con el hash
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      console.log("Las contraseñas no coinciden.");
-      return res.status(401).json({ message: "Contraseña incorrecta" });
-    }
-
-    console.log("Las contraseñas coinciden, generando token...");
-
-    // Generar el token
-    res.status(200).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      token: generateToken(user._id),
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error al iniciar sesión" });
-  }
-};
-*/
