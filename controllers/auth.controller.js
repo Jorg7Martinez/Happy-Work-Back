@@ -68,9 +68,6 @@ exports.registerCompany = async (req, res) => {
 // Login (Usuarios y Empresas)
 exports.login = async (req, res) => {
   const { email, password, type } = req.body;
-
-  console.log("Body recibido:", req.body); // Esto muestra los datos recibidos en el servidor
-
   try {
     const Model = type === "company" ? Company : User;
 
@@ -92,7 +89,6 @@ exports.login = async (req, res) => {
       token: generateToken(account._id),
     });
   } catch (error) {
-    console.error("Error en login:", error); // Esto te ayudará a ver si ocurre algún otro error
     res.status(500).json({ message: "Error al iniciar sesión" });
   }
 };
