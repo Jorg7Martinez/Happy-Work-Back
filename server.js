@@ -6,21 +6,18 @@ const cors = require("cors");
 
 dotenv.config();
 
-// Conectar a MongoDB
 connectDB();
 
 const app = express();
 
-//app.use(cors()); 
-
 app.use(cors({
-  origin: 'http://localhost:3000', // Cambia esto por la URL de tu frontend
-  methods: ['GET', 'POST'],
+  origin: ['http://localhost:3000', 'https://happy-work.vercel.app'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
 app.use(express.json());
 
-// rutas
 const authRoutes = require("./routes/auth.routes");
 const commentRoutes = require("./routes/comment.routes");
 const companyRoutes = require("./routes/company.routes");
