@@ -19,6 +19,9 @@ exports.getAllCompaniesWithAverage = async (req, res) => {
             id: company._id,
             name: company.name,
             description: `Rubro de ${company.industry}. Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados.`,
+            industry:company.industry,
+          address: company.address,
+          employeesCount: company.employeesCount,
             averageRating: 0,
           };
         }
@@ -63,6 +66,9 @@ exports.getAllCompaniesWithAverage = async (req, res) => {
           id: company._id,
           name: company.name,
           description: `Rubro de ${company.industry}. Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados.`,
+          industry:company.industry,
+          address: company.address,
+          employeesCount: company.employeesCount,
           averageRating: parseFloat(overallAverage.toFixed(2)), 
         };
       })
@@ -102,6 +108,9 @@ exports.getCompaniesByIndustryRanking = async (req, res) => {
             id: company._id,
             name: company.name,
             description: `Rubro de ${company.industry}. Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados.`,
+            industry:company.industry,
+          address: company.address,
+          employeesCount: company.employeesCount,
             averageRating: 0,
           };
         }
@@ -144,6 +153,9 @@ exports.getCompaniesByIndustryRanking = async (req, res) => {
           id: company._id,
           name: company.name,
           description: `Rubro de ${company.industry}. Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados.`,
+          industry:company.industry,
+          address: company.address,
+          employeesCount: company.employeesCount,
           averageRating: parseFloat(overallAverage.toFixed(2)),
         };
       })

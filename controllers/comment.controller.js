@@ -45,6 +45,8 @@ exports.addComment = async (req, res) => {
       name: finalName, // Usar el nombre asignado
       isAnonymous,
       comment,
+      positiveComment, 
+      negativeComment,
       ratings,
     });
 
@@ -71,6 +73,81 @@ exports.getComments = async (req, res) => {
     res.status(500).json({ error: "Error al obtener comentarios" });
   }
 };
+
+
+
+// Agregar un comentario si no esta la empresa 
+exports.addCommentCompany = async (req, res) => {
+  try {
+    console.log(req.body);
+
+    const { user, company, name, isAnonymous, comment, ratings, companyName, companyLocation, industry } = req.body;
+
+    // Validación básica
+    if (!user || !comment || !ratings) {
+      return res.status(400).json({ error: "Faltan campos obligatorios" });
+    }
+
+    if (!req.user) {
+      return res.status(401).json({ message: "Usuario no autenticado" });
+    }
+
+    const finalName = isAnonymous ? "Anónimo" : name;
+
+    if (!finalName) {
+      return res.status(400).json({ error: "El nombre es obligatorio si no es anónimo." });
+    }
+
+    const requiredRatings = ["workLifeBalance", "salary", "growthOpportunities", "workEnvironment", "professionalDevelopment"];
+    for (const key of requiredRatings) {
+      if (!ratings[key] && ratings[key] !== 0) {
+        return res.status(400).json({ error: `La calificación para ${key} es obligatoria.` });
+      }
+    }
+
+    let existingCompany = await Company.findById(company);
+
+    if (!existingCompany) {
+      // Si no existe la empresa verificar si ya existe otra empresa con el mismo nombre
+      existingCompany = await Company.findOne({ name: companyName });
+
+      if (!existingCompany) {
+        // Si no existe crear una nueva empresa con el nombre y ubicacion 
+        const newCompany = new Company({
+          name: companyName,
+          location: companyLocation,
+          industry: industry  
+        });
+
+        // Guardar la nueva empresa
+        await newCompany.save();
+        existingCompany = newCompany;
+      } else {
+        return res.status(400).json({ error: "La empresa ya existe." });
+      }
+    }
+
+    // Crear y guardar el comentario
+    const newComment = new Comment({
+      user,
+      company: existingCompany._id,  // Asocia el comentario a la empresa encontrada o creada
+      name: finalName,
+      isAnonymous,
+      comment,
+      ratings,
+    });
+
+    await newComment.save();
+
+    res.status(201).json(newComment);
+  } catch (error) {
+    console.error("Error al agregar comentario:", error.message);
+    res.status(500).json({ error: "Error al agregar comentario", details: error.message });
+  }
+};
+
+
+
 
 
 // Buscar por nombre de empresa o ID
@@ -172,6 +249,8 @@ exports.getCommentByCompanyOrId = async (req, res) => {
         isAnonymous: comment.isAnonymous,
         user: comment.isAnonymous ? "Anónimo" : { id: comment.user?._id, name: comment.user?.name, email: comment.user?.email },
         comment: comment.comment,
+        positiveComment:comment.positiveComment,
+        negativeComment:comment.negativeComment,
         createdAt: comment.createdAt,
         date:comment.date?comment.date.toISOString().split("T")[0]: "",
       })),
@@ -303,6 +382,9 @@ exports.getOverallAverageRatingByCompanyId = async (req, res) => {
           id: company._id,
           name: company.name,
           description: `Rubro de ${company.industry}. Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados.`,
+          industry:company.industry,
+          address: company.address,
+          employeesCount: company.employeesCount,
         },
         averageRatings,
       overallAverage: overallAverage.toFixed(2),
@@ -364,6 +446,9 @@ exports.getCompanyData = async (req, res) => {
           id: company._id,
           name: company.name,
           description: `Rubro de ${company.industry} . Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados `,
+          industry:company.industry,
+          address: company.address,
+          employeesCount: company.employeesCount,
           averageRating: averageRating,
           totalComments: comments.length,
         };
