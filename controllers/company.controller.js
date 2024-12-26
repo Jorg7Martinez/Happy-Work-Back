@@ -82,3 +82,85 @@ exports.getAllCompaniesWithAverage = async (req, res) => {
     res.status(500).json({ error: "Error interno del servidor", details: error.message });
   }
 };
+
+
+
+
+// Obtener ranking de empresas por rubro
+exports.getCompaniesByIndustryRanking = async (req, res) => {
+  const { industry } = req.params; 
+
+  try {
+    const companies = await Company.find({ industry: { $regex: new RegExp(industry, "i") } });
+
+
+    if (!companies.length) {
+      return res.status(404).json({ message: `No se encontraron empresas en el rubro ${industry}` });
+    }
+
+    const result = await Promise.all(
+      companies.map(async (company) => {
+        const comments = await Comment.find({ company: company._id });
+
+        if (comments.length === 0) {
+          return {
+            id: company._id,
+            name: company.name,
+            description: `Rubro de ${company.industry}. Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados.`,
+            averageRating: 0,
+          };
+        }
+
+        const totalRatings = comments.reduce(
+          (totals, comment) => {
+            return {
+              workLifeBalance: totals.workLifeBalance + comment.ratings.workLifeBalance,
+              salary: totals.salary + comment.ratings.salary,
+              growthOpportunities: totals.growthOpportunities + comment.ratings.growthOpportunities,
+              workEnvironment: totals.workEnvironment + comment.ratings.workEnvironment,
+              professionalDevelopment: totals.professionalDevelopment + comment.ratings.professionalDevelopment,
+            };
+          },
+          {
+            workLifeBalance: 0,
+            salary: 0,
+            growthOpportunities: 0,
+            workEnvironment: 0,
+            professionalDevelopment: 0,
+          }
+        );
+
+        const averageRatings = {
+          workLifeBalance: totalRatings.workLifeBalance / comments.length,
+          salary: totalRatings.salary / comments.length,
+          growthOpportunities: totalRatings.growthOpportunities / comments.length,
+          workEnvironment: totalRatings.workEnvironment / comments.length,
+          professionalDevelopment: totalRatings.professionalDevelopment / comments.length,
+        };
+
+        const overallAverage =
+          (averageRatings.workLifeBalance +
+            averageRatings.salary +
+            averageRatings.growthOpportunities +
+            averageRatings.workEnvironment +
+            averageRatings.professionalDevelopment) / 5;
+
+        return {
+          id: company._id,
+          name: company.name,
+          description: `Rubro de ${company.industry}. Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados.`,
+          averageRating: parseFloat(overallAverage.toFixed(2)),
+        };
+      })
+    );
+
+    // Ordenar las empresas por el promedio general en orden descendente
+    const sortedResult = result.sort((a, b) => b.averageRating - a.averageRating);
+
+    res.status(200).json(sortedResult);
+  } catch (error) {
+    console.error("Error al obtener empresas con promedio:", error.message);
+    res.status(500).json({ error: "Error interno del servidor", details: error.message });
+  }
+};
+

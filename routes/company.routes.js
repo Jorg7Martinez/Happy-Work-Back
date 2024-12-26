@@ -1,9 +1,12 @@
 const express = require("express");
 const router = express.Router();
-const { getAllCompaniesWithAverage } = require("../controllers/company.controller");
+const { getAllCompaniesWithAverage, getCompaniesByIndustryRanking } = require("../controllers/company.controller");
 
 
 router.get("/ranking", getAllCompaniesWithAverage);
+
+router.get("/rubro/ranking/:industry", getCompaniesByIndustryRanking);
+
 
 
 
