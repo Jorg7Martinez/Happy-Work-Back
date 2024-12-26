@@ -1,6 +1,6 @@
 
-const Company = require("../model/company.model");
-const Comment = require("../model/comment.model");
+const Company = require("../model/company.model"); 
+const Comment = require("../model/comment.model"); 
 
 // Agregar un comentario
 exports.addComment = async (req, res) => {
@@ -9,13 +9,15 @@ exports.addComment = async (req, res) => {
 
     const { user, company, name, isAnonymous, comment, ratings } = req.body;
 
+    // Validación básica
     if (!user || !company || !comment || !ratings) {
       return res.status(400).json({ error: "Faltan campos obligatorios" });
     }
     if (!req.user) {
       return res.status(401).json({ message: "Usuario no autenticado" });
-
+      
     }
+    // Asignar nombre como 'Anonimo' si es anonimo
     const finalName = isAnonymous ? "Anónimo" : name;
 
     if (!finalName) {
@@ -40,9 +42,11 @@ exports.addComment = async (req, res) => {
     const newComment = new Comment({
       user,
       company,
-      name: finalName,
+      name: finalName, // Usar el nombre asignado
       isAnonymous,
       comment,
+      positiveComment, 
+      negativeComment,
       ratings,
     });
 
@@ -62,13 +66,88 @@ exports.addComment = async (req, res) => {
 // Obtener todos los comentarios
 exports.getComments = async (req, res) => {
   try {
-    const comments = await Comment.find();
+    const comments = await Comment.find(); 
     res.status(200).json(comments);
   } catch (error) {
     console.error("Error al obtener comentarios:", error);
     res.status(500).json({ error: "Error al obtener comentarios" });
   }
 };
+
+
+
+// Agregar un comentario si no esta la empresa 
+exports.addCommentCompany = async (req, res) => {
+  try {
+    console.log(req.body);
+
+    const { user, company, name, isAnonymous, comment, ratings, companyName, companyLocation, industry } = req.body;
+
+    // Validación básica
+    if (!user || !comment || !ratings) {
+      return res.status(400).json({ error: "Faltan campos obligatorios" });
+    }
+
+    if (!req.user) {
+      return res.status(401).json({ message: "Usuario no autenticado" });
+    }
+
+    const finalName = isAnonymous ? "Anónimo" : name;
+
+    if (!finalName) {
+      return res.status(400).json({ error: "El nombre es obligatorio si no es anónimo." });
+    }
+
+    const requiredRatings = ["workLifeBalance", "salary", "growthOpportunities", "workEnvironment", "professionalDevelopment"];
+    for (const key of requiredRatings) {
+      if (!ratings[key] && ratings[key] !== 0) {
+        return res.status(400).json({ error: `La calificación para ${key} es obligatoria.` });
+      }
+    }
+
+    let existingCompany = await Company.findById(company);
+
+    if (!existingCompany) {
+      // Si no existe la empresa verificar si ya existe otra empresa con el mismo nombre
+      existingCompany = await Company.findOne({ name: companyName });
+
+      if (!existingCompany) {
+        // Si no existe crear una nueva empresa con el nombre y ubicacion 
+        const newCompany = new Company({
+          name: companyName,
+          location: companyLocation,
+          industry: industry  
+        });
+
+        // Guardar la nueva empresa
+        await newCompany.save();
+        existingCompany = newCompany;
+      } else {
+        return res.status(400).json({ error: "La empresa ya existe." });
+      }
+    }
+
+    // Crear y guardar el comentario
+    const newComment = new Comment({
+      user,
+      company: existingCompany._id,  // Asocia el comentario a la empresa encontrada o creada
+      name: finalName,
+      isAnonymous,
+      comment,
+      ratings,
+    });
+
+    await newComment.save();
+
+    res.status(201).json(newComment);
+  } catch (error) {
+    console.error("Error al agregar comentario:", error.message);
+    res.status(500).json({ error: "Error al agregar comentario", details: error.message });
+  }
+};
+
+
+
 
 
 // Buscar por nombre de empresa o ID
@@ -78,15 +157,17 @@ exports.getCommentByCompanyOrId = async (req, res) => {
   try {
     let query = {};
 
-    let companyDetails;
+    let companyDetails; 
 
     if (id) {
+      // Buscar empresa por ID
       companyDetails = await Company.findById(id);
       if (!companyDetails) {
         return res.status(404).json({ error: "No se encontró una empresa con ese ID" });
       }
       query.company = id;
     } else if (companyName) {
+      // Buscar empresas por nombre
       const companies = await Company.find({
         name: { $regex: companyName, $options: "i" },
       });
@@ -95,12 +176,14 @@ exports.getCommentByCompanyOrId = async (req, res) => {
         return res.status(404).json({ error: "No se encontraron empresas con ese nombre" });
       }
 
+      // Seleccionar la primera empresa encontrada
       companyDetails = companies[0];
       query.company = companyDetails._id;
     } else {
       return res.status(400).json({ error: "Debes proporcionar un ID de empresa o un nombre" });
     }
 
+    // Buscar comentarios relacionados con la empresa
     const comments = await Comment.find(query)
       .populate("company", "name industry address employeesCount")
       .populate("user", "name email");
@@ -162,12 +245,14 @@ exports.getCommentByCompanyOrId = async (req, res) => {
       comments: comments.map((comment) => ({
         id: comment._id,
         content: comment.content,
-        rating: comment.ratings,
+        rating: comment.ratings, 
         isAnonymous: comment.isAnonymous,
         user: comment.isAnonymous ? "Anónimo" : { id: comment.user?._id, name: comment.user?.name, email: comment.user?.email },
         comment: comment.comment,
+        positiveComment:comment.positiveComment,
+        negativeComment:comment.negativeComment,
         createdAt: comment.createdAt,
-        date: comment.date ? comment.date.toISOString().split("T")[0] : "",
+        date:comment.date?comment.date.toISOString().split("T")[0]: "",
       })),
     };
 
@@ -184,13 +269,14 @@ exports.getCommentByCompanyOrId = async (req, res) => {
 
 //promedio de empresas
 exports.getAverageRatingsByCompanyId = async (req, res) => {
-  const { id } = req.query;
+  const { id } = req.query; // ID de la empresa
 
   if (!id) {
     return res.status(400).json({ error: "Debes proporcionar el ID de la empresa" });
   }
 
   try {
+    // Buscar comentarios por ID de empresa
     const comments = await Comment.find({ company: id });
 
     if (!comments.length) {
@@ -235,7 +321,7 @@ exports.getAverageRatingsByCompanyId = async (req, res) => {
 
 //calificaciones finales
 exports.getOverallAverageRatingByCompanyId = async (req, res) => {
-  const { id } = req.query;
+  const { id } = req.query; // ID de la empresa
 
   if (!id) {
     return res.status(400).json({ error: "Debes proporcionar el ID de la empresa" });
@@ -247,6 +333,7 @@ exports.getOverallAverageRatingByCompanyId = async (req, res) => {
     if (!company) {
       return res.status(404).json({ message: "No se encontró la empresa con el ID proporcionado" });
     }
+    // Buscar comentarios por ID de empresa
     const comments = await Comment.find({ company: id });
 
     if (!comments.length) {
@@ -290,13 +377,16 @@ exports.getOverallAverageRatingByCompanyId = async (req, res) => {
         averageRatings.professionalDevelopment) /
       5;
 
-    res.status(200).json({
-      company: {
-        id: company._id,
-        name: company.name,
-        description: `Rubro de ${company.industry}. Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados.`,
-      },
-      averageRatings,
+      res.status(200).json({
+        company: {
+          id: company._id,
+          name: company.name,
+          description: `Rubro de ${company.industry}. Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados.`,
+          industry:company.industry,
+          address: company.address,
+          employeesCount: company.employeesCount,
+        },
+        averageRatings,
       overallAverage: overallAverage.toFixed(2),
       totalComments: comments.length,
     });
@@ -307,14 +397,16 @@ exports.getOverallAverageRatingByCompanyId = async (req, res) => {
 };
 
 
-
+///
 exports.getCompanyData = async (req, res) => {
   try {
-
+   
     const companies = await Company.find();
 
+    // Promete resolver los datos de cada empresa
     const companyData = await Promise.all(
       companies.map(async (company) => {
+        // Busca los comentarios relacionados con la empresa
         const comments = await Comment.find({ company: company._id });
 
         // Calcula el promedio de calificaciones
@@ -340,13 +432,13 @@ exports.getCompanyData = async (req, res) => {
         const averageRating =
           comments.length > 0
             ? (
-              (totalRatings.workLifeBalance +
-                totalRatings.salary +
-                totalRatings.growthOpportunities +
-                totalRatings.workEnvironment +
-                totalRatings.professionalDevelopment) /
-              (5 * comments.length)
-            ).toFixed(2)
+                (totalRatings.workLifeBalance +
+                  totalRatings.salary +
+                  totalRatings.growthOpportunities +
+                  totalRatings.workEnvironment +
+                  totalRatings.professionalDevelopment) /
+                (5 * comments.length)
+              ).toFixed(2)
             : 0;
 
         // Devuelve los datos necesarios
@@ -354,6 +446,9 @@ exports.getCompanyData = async (req, res) => {
           id: company._id,
           name: company.name,
           description: `Rubro de ${company.industry} . Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados `,
+          industry:company.industry,
+          address: company.address,
+          employeesCount: company.employeesCount,
           averageRating: averageRating,
           totalComments: comments.length,
         };

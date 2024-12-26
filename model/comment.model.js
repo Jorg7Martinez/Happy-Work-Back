@@ -6,6 +6,8 @@ const commentSchema = new mongoose.Schema({
   name: { type: String, required: true },
   isAnonymous: { type: Boolean, default: false },
   comment: { type: String, required: true },
+  positiveComment: { type: String, required: false },  // Comentario opcional
+  negativeComment: { type: String, required: false },  
   ratings: {
     workLifeBalance: { type: Number, required: true },
     salary: { type: Number, required: true },
