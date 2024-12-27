@@ -1,18 +1,25 @@
 const Company = require("../model/company.model");
 const Comment = require("../model/comment.model");
 
-// Obtener lista de empresas con promedio de calificaciones en orden descendente
+
 exports.getAllCompaniesWithAverage = async (req, res) => {
   try {
-    const { companyName } = req.query; 
+    const { companyName, industry } = req.query;
 
-    // Filtrar por nombre de empresa si `companyName` está presente
-    const companies = await Company.find(
-      companyName ? { name: { $regex: companyName, $options: "i" } } : {}
-    );
+    const filters = {};
+
+    if (companyName) {
+      filters.name = { $regex: companyName, $options: "i" }; 
+    }
+
+    if (industry) {
+      filters.industry = { $regex: industry, $options: "i" }; 
+    }
+
+    const companies = await Company.find(filters);
 
     if (!companies || companies.length === 0) {
-      return res.status(200).json([]);  
+      return res.status(200).json([]);
     }
 
     const result = await Promise.all(
@@ -24,9 +31,9 @@ exports.getAllCompaniesWithAverage = async (req, res) => {
             id: company._id,
             name: company.name,
             description: `Rubro de ${company.industry}. Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados.`,
-            industry:company.industry,
-          address: company.address,
-          employeesCount: company.employeesCount,
+            industry: company.industry,
+            address: company.address,
+            employeesCount: company.employeesCount,
             averageRating: 0,
           };
         }
@@ -71,10 +78,10 @@ exports.getAllCompaniesWithAverage = async (req, res) => {
           id: company._id,
           name: company.name,
           description: `Rubro de ${company.industry}. Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados.`,
-          industry:company.industry,
+          industry: company.industry,
           address: company.address,
           employeesCount: company.employeesCount,
-          averageRating: parseFloat(overallAverage.toFixed(2)), 
+          averageRating: parseFloat(overallAverage.toFixed(2)),
         };
       })
     );
@@ -90,11 +97,9 @@ exports.getAllCompaniesWithAverage = async (req, res) => {
 };
 
 
-
-
 // Obtener ranking de empresas por rubro
 exports.getCompaniesByIndustryRanking = async (req, res) => {
-  const { industry } = req.params; 
+  const { industry } = req.params;
 
   try {
     const companies = await Company.find({ industry: { $regex: new RegExp(industry, "i") } });
@@ -113,9 +118,9 @@ exports.getCompaniesByIndustryRanking = async (req, res) => {
             id: company._id,
             name: company.name,
             description: `Rubro de ${company.industry}. Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados.`,
-            industry:company.industry,
-          address: company.address,
-          employeesCount: company.employeesCount,
+            industry: company.industry,
+            address: company.address,
+            employeesCount: company.employeesCount,
             averageRating: 0,
           };
         }
@@ -158,7 +163,7 @@ exports.getCompaniesByIndustryRanking = async (req, res) => {
           id: company._id,
           name: company.name,
           description: `Rubro de ${company.industry}. Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados.`,
-          industry:company.industry,
+          industry: company.industry,
           address: company.address,
           employeesCount: company.employeesCount,
           averageRating: parseFloat(overallAverage.toFixed(2)),
@@ -175,4 +180,17 @@ exports.getCompaniesByIndustryRanking = async (req, res) => {
     res.status(500).json({ error: "Error interno del servidor", details: error.message });
   }
 };
+
+
+// Obtener todas las industrias únicas de las empresas
+exports.getAllIndustries = async (req, res) => {
+  try {
+    const industries = await Company.distinct("industry");
+    res.status(200).json(industries);
+  } catch (error) {
+    console.error("Error al obtener industrias:", error.message);
+    res.status(500).json({ error: "Error interno del servidor", details: error.message });
+  }
+};
+
 

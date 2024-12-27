@@ -1,6 +1,6 @@
 
-const Company = require("../model/company.model"); 
-const Comment = require("../model/comment.model"); 
+const Company = require("../model/company.model");
+const Comment = require("../model/comment.model");
 
 // Agregar un comentario
 exports.addComment = async (req, res) => {
@@ -15,7 +15,7 @@ exports.addComment = async (req, res) => {
     }
     if (!req.user) {
       return res.status(401).json({ message: "Usuario no autenticado" });
-      
+
     }
     // Asignar nombre como 'Anonimo' si es anonimo
     const finalName = isAnonymous ? "Anónimo" : name;
@@ -45,7 +45,7 @@ exports.addComment = async (req, res) => {
       name: finalName, // Usar el nombre asignado
       isAnonymous,
       comment,
-      positiveComment, 
+      positiveComment,
       negativeComment,
       ratings,
     });
@@ -66,7 +66,7 @@ exports.addComment = async (req, res) => {
 // Obtener todos los comentarios
 exports.getComments = async (req, res) => {
   try {
-    const comments = await Comment.find(); 
+    const comments = await Comment.find();
     res.status(200).json(comments);
   } catch (error) {
     console.error("Error al obtener comentarios:", error);
@@ -116,7 +116,7 @@ exports.addCommentCompany = async (req, res) => {
         const newCompany = new Company({
           name: companyName,
           location: companyLocation,
-          industry: industry  
+          industry: industry
         });
 
         // Guardar la nueva empresa
@@ -157,7 +157,7 @@ exports.getCommentByCompanyOrId = async (req, res) => {
   try {
     let query = {};
 
-    let companyDetails; 
+    let companyDetails;
 
     if (id) {
       // Buscar empresa por ID
@@ -245,14 +245,14 @@ exports.getCommentByCompanyOrId = async (req, res) => {
       comments: comments.map((comment) => ({
         id: comment._id,
         content: comment.content,
-        rating: comment.ratings, 
+        rating: comment.ratings,
         isAnonymous: comment.isAnonymous,
         user: comment.isAnonymous ? "Anónimo" : { id: comment.user?._id, name: comment.user?.name, email: comment.user?.email },
         comment: comment.comment,
-        positiveComment:comment.positiveComment,
-        negativeComment:comment.negativeComment,
+        positiveComment: comment.positiveComment,
+        negativeComment: comment.negativeComment,
         createdAt: comment.createdAt,
-        date:comment.date?comment.date.toISOString().split("T")[0]: "",
+        date: comment.date ? comment.date.toISOString().split("T")[0] : "",
       })),
     };
 
@@ -377,16 +377,16 @@ exports.getOverallAverageRatingByCompanyId = async (req, res) => {
         averageRatings.professionalDevelopment) /
       5;
 
-      res.status(200).json({
-        company: {
-          id: company._id,
-          name: company.name,
-          description: `Rubro de ${company.industry}. Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados.`,
-          industry:company.industry,
-          address: company.address,
-          employeesCount: company.employeesCount,
-        },
-        averageRatings,
+    res.status(200).json({
+      company: {
+        id: company._id,
+        name: company.name,
+        description: `Rubro de ${company.industry}. Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados.`,
+        industry: company.industry,
+        address: company.address,
+        employeesCount: company.employeesCount,
+      },
+      averageRatings,
       overallAverage: overallAverage.toFixed(2),
       totalComments: comments.length,
     });
@@ -400,7 +400,7 @@ exports.getOverallAverageRatingByCompanyId = async (req, res) => {
 ///
 exports.getCompanyData = async (req, res) => {
   try {
-   
+
     const companies = await Company.find();
 
     // Promete resolver los datos de cada empresa
@@ -432,13 +432,13 @@ exports.getCompanyData = async (req, res) => {
         const averageRating =
           comments.length > 0
             ? (
-                (totalRatings.workLifeBalance +
-                  totalRatings.salary +
-                  totalRatings.growthOpportunities +
-                  totalRatings.workEnvironment +
-                  totalRatings.professionalDevelopment) /
-                (5 * comments.length)
-              ).toFixed(2)
+              (totalRatings.workLifeBalance +
+                totalRatings.salary +
+                totalRatings.growthOpportunities +
+                totalRatings.workEnvironment +
+                totalRatings.professionalDevelopment) /
+              (5 * comments.length)
+            ).toFixed(2)
             : 0;
 
         // Devuelve los datos necesarios
@@ -446,7 +446,7 @@ exports.getCompanyData = async (req, res) => {
           id: company._id,
           name: company.name,
           description: `Rubro de ${company.industry} . Ubicada en ${company.address}, cuenta con ${company.employeesCount} empleados `,
-          industry:company.industry,
+          industry: company.industry,
           address: company.address,
           employeesCount: company.employeesCount,
           averageRating: averageRating,
