@@ -18,6 +18,11 @@ app.use(cors({
 
 app.use(express.json());
 
+app.get("/api", (req, res) => {
+  res.send("API funcionando correctamente");
+});
+
+
 const authRoutes = require("./routes/auth.routes");
 const commentRoutes = require("./routes/comment.routes");
 const companyRoutes = require("./routes/company.routes");
